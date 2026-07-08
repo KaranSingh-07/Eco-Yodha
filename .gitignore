@@ -1,0 +1,11 @@
+node_modules/
+.env
+dist/
+build/
+backend/node_modules/
+backend/.env
+
+# Ignore all files in uploads
+backend/uploads/*
+# But keep sample-video.mp4
+!backend/uploads/sample-video.mp4

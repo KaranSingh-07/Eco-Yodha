@@ -1,0 +1,361 @@
+🏗️ Eco-Yodha Backend — Complete Implementation Plan
+────────────────────────────────────────────────────────────────────────────────
+PART 1: TECH STACK
+┌──────────────────┬──────────────────────────┬──────────────────────────────┐
+│ Layer            │ Technology               │ Purpose                      │
+├──────────────────┼──────────────────────────┼──────────────────────────────┤
+│ Runtime          │ Node.js 20+              │ Server runtime               │
+│ Framework        │ Express.js               │ HTTP server & routing        │
+│ Database         │ MongoDB (Atlas or local) │ Document database            │
+│ ODM              │ Mongoose 8.x             │ MongoDB object modeling      │
+│ Auth             │ JWT (jsonwebtoken)       │ Token-based authentication   │
+│ Password Hashing │ bcryptjs                 │ Secure password storage      │
+│ File Upload      │ Multer + cloudinary      │ Quest proof uploads          │
+│ Validation       │ Zod                      │ Request body validation      │
+│ CORS             │ cors                     │ Cross-origin requests        │
+│ Env Config       │ dotenv                   │ Environment variables        │
+│ AI Chatbot       │ OpenAI API (GPT-4o-mini) │ Environmental Q&A            │
+│ Dev Tools        │ nodemon, concurrently    │ Hot reload, run both servers │
+└──────────────────┴──────────────────────────┴──────────────────────────────┘
+────────────────────────────────────────────────────────────────────────────────
+PART 2: PROJECT STRUCTURE
+backend/
+├── package.json
+├── .env
+├── .env.example
+├── server.js                    # Entry point
+├── config/
+│   ├── db.js                    # MongoDB connection
+│   └── config.js                # Central config (JWT secret, etc.)
+├── middleware/
+│   ├── auth.js                  # JWT verification middleware
+│   ├── roleCheck.js             # Role-based access (student/teacher)
+│   ├── errorHandler.js          # Global error handler
+│   └── upload.js                # Multer file upload config
+├── models/
+│   ├── User.js                  # Student + Teacher (role field)
+│   ├── Classroom.js             # Teacher's classrooms
+│   ├── Module.js                # Learning modules (video/quiz)
+│   ├── Quiz.js                  # Quiz questions per module
+│   ├── Quest.js                 # Community tasks/quests
+│   ├── Badge.js                 # Badge definitions
+│   ├── UserProgress.js          # Per-user progress tracking
+│   ├── QuizSubmission.js        # Student quiz attempts & scores
+│   ├── QuestSubmission.js       # Quest file uploads & verification
+│   └── UserBadge.js             # Earned badges per user
+├── routes/
+│   ├── auth.routes.js           # Register, login, profile
+│   ├── classroom.routes.js      # Create classroom, join, verify
+│   ├── module.routes.js         # Learning path modules
+│   ├── quiz.routes.js           # Quiz questions, submit answers
+│   ├── quest.routes.js          # Quests, submissions
+│   ├── badge.routes.js          # Badge definitions & earned
+│   ├── progress.routes.js       # Dashboard data, scores
+│   ├── leaderboard.routes.js    # Weekly & global rankings
+│   ├── teacher.routes.js        # Teacher dashboard, roster
+│   ├── chatbot.routes.js        # AI companion endpoint
+│   └── upload.routes.js         # File upload handling
+├── controllers/
+│   ├── auth.controller.js
+│   ├── classroom.controller.js
+│   ├── module.controller.js
+│   ├── quiz.controller.js
+│   ├── quest.controller.js
+│   ├── badge.controller.js
+│   ├── progress.controller.js
+│   ├── leaderboard.controller.js
+│   ├── teacher.controller.js
+│   ├── chatbot.controller.js
+│   └── upload.controller.js
+├── utils/
+│   ├── generateToken.js         # JWT generation helper
+│   ├── calculateEcoPoints.js    # Eco-point formula logic
+│   ├── calculateGrade.js        # Auto-grade mapping
+│   ├── weeklyReset.js           # Leaderboard weekly reset cron
+│   └── seedData.js              # Initial data seeder
+└── uploads/                     # Local file storage (dev)
+────────────────────────────────────────────────────────────────────────────────
+PART 3: DATABASE MODELS (MongoDB/Mongoose)
+3.1 User
+// js
+{
+  _id, name, email, password (hashed),
+  role: "student" | "teacher",
+  // Student fields:
+  school, grade, section, classroomCode,
+  // Teacher fields:
+  institutionName, department, phone, location,
+  specialization, classrooms: [ObjectId],
+  // Gamification:
+  level: Number, xp: Number,
+  currentStreak: Number, lastActiveDate: Date,
+  avatar: String (initials),
+  createdAt, updatedAt
+}
+3.2 Classroom
+// js
+{
+  _id, name (e.g. "10-A"),
+  code: String (unique 6-digit),
+  teacher: ObjectId (ref User),
+  students: [ObjectId (ref User)],
+  createdAt
+}
+3.3 Module (Learning Path)
+// js
+{
+  _id, title, type: "video" | "quiz" | "major-quiz" | "quest",
+  description, videoUrl,
+  position: Number (order in path),
+  order: Number (difficulty tier),
+  ecoPointsReward: Number,
+  createdAt
+}
+3.4 Quiz
+// js
+{
+  _id, module: ObjectId (ref Module),
+  questions: [{
+    question: String,
+    options: [String],
+    correctAnswer: Number (index),
+    explanation: String
+  }]
+}
+3.5 Quest (Community Task)
+// js
+{
+  _id, title, region, description,
+  status: "active" | "locked",
+  points: Number, doublePoints: Boolean,
+  deadline: Date,
+  badges: [ObjectId (ref Badge)],
+  requiredLevel: Number,
+  createdAt
+}
+3.6 Badge
+// js
+{
+  _id, name, description,
+  rarity: "common" | "rare" | "epic" | "legendary",
+  icon: String, criteria: String
+}
+3.7 UserProgress
+// js
+{
+  _id, user: ObjectId (ref User),
+  completedModules: [ObjectId],
+  currentModule: ObjectId,
+  carbonScore: Number, waterScore: Number, soilScore: Number,
+  totalEcoPoints: Number,
+  weeklyPoints: Number,
+  streak: Number, lastActiveDate: Date,
+  updatedAt
+}
+3.8 QuizSubmission
+// js
+{
+  _id, user: ObjectId (ref User),
+  quiz: ObjectId (ref Quiz),
+  module: ObjectId (ref Module),
+  answers: [Number], score: Number,
+  totalQuestions: Number,
+  ecoPointsEarned: Number,
+  submittedAt: Date
+}
+3.9 QuestSubmission
+// js
+{
+  _id, user: ObjectId (ref User),
+  quest: ObjectId (ref Quest),
+  files: [{ url: String, filename: String }],
+  status: "pending" | "approved" | "rejected",
+  teacherComment: String,
+  verifiedBy: ObjectId (ref User),
+  submittedAt: Date, verifiedAt: Date
+}
+3.10 UserBadge
+// js
+{
+  _id, user: ObjectId (ref User),
+  badge: ObjectId (ref Badge),
+  earnedAt: Date
+}
+────────────────────────────────────────────────────────────────────────────────
+PART 4: API ENDPOINTS
+Auth
+┌────────┬────────────────────┬─────────────────────────────┐
+│ Method │ Endpoint           │ Description                 │
+├────────┼────────────────────┼─────────────────────────────┤
+│ POST   │ /api/auth/register │ Register student or teacher │
+│ POST   │ /api/auth/login    │ Login, returns JWT          │
+│ GET    │ /api/auth/me       │ Get current user profile    │
+│ PUT    │ /api/auth/profile  │ Update profile              │
+└────────┴────────────────────┴─────────────────────────────┘
+Classroom
+┌────────┬──────────────────────────────────┬─────────────────────────────────────────────────┐
+│ Method │ Endpoint                         │ Description                                     │
+├────────┼──────────────────────────────────┼─────────────────────────────────────────────────┤
+│ POST   │ /api/classroom/create            │ Teacher creates classroom (auto-generates code) │
+│ POST   │ /api/classroom/join              │ Student joins via 6-digit code                  │
+│ PUT    │ /api/classroom/verify/:studentId │ Teacher approve/deny student                    │
+│ GET    │ /api/classroom/students          │ Get all students in teacher's classrooms        │
+└────────┴──────────────────────────────────┴─────────────────────────────────────────────────┘
+Modules (Learning Path)
+┌────────┬───────────────────────────┬─────────────────────────────────────┐
+│ Method │ Endpoint                  │ Description                         │
+├────────┼───────────────────────────┼─────────────────────────────────────┤
+│ GET    │ /api/modules              │ Get full learning path              │
+│ GET    │ /api/modules/:id          │ Get single module (with video/quiz) │
+│ PUT    │ /api/modules/:id/complete │ Mark module completed, unlock next  │
+└────────┴───────────────────────────┴─────────────────────────────────────┘
+Quizzes
+┌────────┬────────────────────────────┬────────────────────────────────────────┐
+│ Method │ Endpoint                   │ Description                            │
+├────────┼────────────────────────────┼────────────────────────────────────────┤
+│ GET    │ /api/quiz/:moduleId        │ Get quiz for a module                  │
+│ POST   │ /api/quiz/:moduleId/submit │ Submit answers, get score + eco-points │
+└────────┴────────────────────────────┴────────────────────────────────────────┘
+Quests
+┌────────┬────────────────────────────────────┬──────────────────────────────────┐
+│ Method │ Endpoint                           │ Description                      │
+├────────┼────────────────────────────────────┼──────────────────────────────────┤
+│ GET    │ /api/quests                        │ List all quests                  │
+│ GET    │ /api/quests/:id                    │ Get quest details                │
+│ POST   │ /api/quests/:id/submit             │ Submit quest proof (file upload) │
+│ GET    │ /api/quests/submissions/pending    │ Teacher: pending verifications   │
+│ PUT    │ /api/quests/submissions/:id/verify │ Teacher: approve/reject          │
+└────────┴────────────────────────────────────┴──────────────────────────────────┘
+Badges
+┌────────┬────────────────┬──────────────────────────────┐
+│ Method │ Endpoint       │ Description                  │
+├────────┼────────────────┼──────────────────────────────┤
+│ GET    │ /api/badges    │ All badge definitions        │
+│ GET    │ /api/badges/my │ Current user's earned badges │
+└────────┴────────────────┴──────────────────────────────┘
+Progress & Dashboard
+┌────────┬─────────────────────────┬──────────────────────────────┐
+│ Method │ Endpoint                │ Description                  │
+├────────┼─────────────────────────┼──────────────────────────────┤
+│ GET    │ /api/progress/dashboard │ Student dashboard data       │
+│ GET    │ /api/progress/trends    │ Weekly trend data for charts │
+│ PUT    │ /api/progress/streak    │ Update daily streak          │
+└────────┴─────────────────────────┴──────────────────────────────┘
+Leaderboard
+┌────────┬─────────────────────────┬─────────────────────────┐
+│ Method │ Endpoint                │ Description             │
+├────────┼─────────────────────────┼─────────────────────────┤
+│ GET    │ /api/leaderboard/weekly │ Current week's rankings │
+│ GET    │ /api/leaderboard/global │ All-time rankings       │
+│ GET    │ /api/leaderboard/me     │ Current user's rank     │
+└────────┴─────────────────────────┴─────────────────────────┘
+Teacher Dashboard
+┌────────┬────────────────────────────────┬─────────────────────────────────┐
+│ Method │ Endpoint                       │ Description                     │
+├────────┼────────────────────────────────┼─────────────────────────────────┤
+│ GET    │ /api/teacher/stats             │ Aggregated class statistics     │
+│ GET    │ /api/teacher/roster            │ Full student performance roster │
+│ GET    │ /api/teacher/export/csv        │ CSV download of roster          │
+│ GET    │ /api/teacher/report/:studentId │ Individual report card          │
+└────────┴────────────────────────────────┴─────────────────────────────────┘
+AI Chatbot
+┌────────┬──────────────┬───────────────────────────────┐
+│ Method │ Endpoint     │ Description                   │
+├────────┼──────────────┼───────────────────────────────┤
+│ POST   │ /api/chatbot │ Send message, get AI response │
+└────────┴──────────────┴───────────────────────────────┘
+File Upload
+┌────────┬─────────────┬─────────────────────────────────────────┐
+│ Method │ Endpoint    │ Description                             │
+├────────┼─────────────┼─────────────────────────────────────────┤
+│ POST   │ /api/upload │ Upload file (quest proof, images, docs) │
+└────────┴─────────────┴─────────────────────────────────────────┘
+────────────────────────────────────────────────────────────────────────────────
+PART 5: IMPLEMENTATION STEPS (Broken into Phases)
+Phase 1 — Project Setup & Database
+1. Initialize  backend/  folder with  npm init 
+2. Install all dependencies (express, mongoose, bcryptjs, jsonwebtoken, multer, cors, dotenv, zod, openai)
+3. Create  .env  and  .env.example  files
+4. Set up Express server entry point ( server.js )
+5. Configure MongoDB connection ( config/db.js )
+6. Create all 10 Mongoose models
+7. Create seed script to populate initial data (modules, quizzes, badges, quests)
+Phase 2 — Authentication
+8. Create JWT token generation utility
+9. Create auth middleware (JWT verification)
+10. Create role-check middleware
+11. Build auth routes + controller (register, login, me, profile)
+12. Test auth endpoints with curl/Postman
+Phase 3 — Classroom System
+13. Build classroom routes + controller (create, join, verify, students)
+14. Connect classroom code to student registration flow
+Phase 4 — Learning Path & Quizzes
+15. Build module routes + controller (list, get single, mark complete)
+16. Build quiz routes + controller (get questions, submit answers)
+17. Implement auto-unlock logic (complete module → unlock next)
+18. Implement eco-point calculation on quiz completion
+Phase 5 — Quests & File Upload
+19. Set up Multer middleware for file uploads
+20. Build quest routes + controller (list, get, submit)
+21. Build quest submission verification (teacher approve/deny)
+22. Implement file storage (local dev → Cloudinary in production)
+Phase 6 — Gamification (Badges, Leaderboards, Progress)
+23. Build badge routes + controller (definitions, earned badges)
+24. Implement badge auto-award logic (triggered on achievements)
+25. Build progress routes + controller (dashboard data, trends)
+26. Implement daily streak tracking
+27. Build leaderboard routes + controller (weekly, global, user rank)
+28. Implement weekly leaderboard reset (cron job or scheduled check)
+Phase 7 — Teacher Dashboard
+29. Build teacher stats aggregation endpoint
+30. Build student roster endpoint with auto-grade calculation
+31. Build CSV export endpoint
+32. Build individual report card endpoint
+Phase 8 — AI Chatbot
+33. Set up OpenAI API integration
+34. Build chatbot route with system prompt for environmental domain
+35. Add rate limiting for API calls
+Phase 9 — Frontend Integration (Remove Hardcoding)
+36. Create API service layer ( src/services/api.ts ) with axios
+37. Create AuthContext provider with JWT token management
+38. Create protected route wrapper component
+39. Update LandingPage — wire auth forms to register/login API
+40. Update Sidebar — fetch user profile from API
+41. Update StudentDashboard — fetch progress, scores, trends from API
+42. Update LearningMap — fetch modules, track completion from API
+43. Update VideoLecture — fetch quiz questions, submit answers to API
+44. Update CommunityTasks — fetch quests, upload files to API
+45. Update Leaderboard — fetch weekly/global data from API
+46. Update TeacherDashboard — fetch roster, pending students, stats from API
+47. Update AIChatbot — connect to  /api/chatbot  endpoint
+48. Add loading skeletons and error states throughout all screens
+49. Add toast notifications (sonner) for actions (login, submit, etc.)
+Phase 10 — Polish & Production
+50. Add input validation on all endpoints (Zod)
+51. Add global error handler middleware
+52. Add request rate limiting
+53. Configure CORS properly for production
+54. Add  package.json  scripts for dev (concurrently run frontend + backend)
+55. Final end-to-end testing
+────────────────────────────────────────────────────────────────────────────────
+PART 6: HOW FRONTEND ↔ BACKEND CONNECT
+Frontend (Vite :5173)  ←→  Backend (Express :5000)
+        ↓                          ↓
+   React components         API endpoints
+        ↓                          ↓
+   src/services/api.js     routes → controllers → models → MongoDB
+        ↓
+   AuthContext (JWT stored in localStorage)
+        ↓
+   Protected routes redirect to / if no token
+Frontend additions needed:
+-  src/contexts/AuthContext.tsx  — provides user state + token
+-  src/services/api.ts  — axios instance with base URL + auth header interceptor
+-  src/components/ProtectedRoute.tsx  — redirects unauthenticated users
+-  src/hooks/useApi.ts  — reusable fetch wrapper with loading/error states
+────────────────────────────────────────────────────────────────────────────────
+This is the complete plan. Ready to execute whenever you say the word — I'll go phase by phase, small steps at a time.
+Suggested followups:
+
+
+
